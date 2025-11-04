@@ -18,6 +18,7 @@ import {
   Mic,
   MicOff,
   AlertCircle,
+  Languages,
 } from "lucide-react";
 import Link from "next/link";
 import { useScribe } from "@elevenlabs/react";
@@ -48,6 +49,48 @@ interface Caption {
   text: string;
   timestamp: string;
   is_final: boolean;
+  language_code?: string;
+}
+
+// Type definitions for Chrome Language Detector API
+interface LanguageDetectorCreateOptions {
+  monitor?: (monitor: LanguageDetectorMonitor) => void;
+}
+
+interface LanguageDetectorMonitor {
+  addEventListener(
+    type: "downloadprogress",
+    listener: (event: LanguageDetectorDownloadProgressEvent) => void
+  ): void;
+  removeEventListener(
+    type: "downloadprogress",
+    listener: (event: LanguageDetectorDownloadProgressEvent) => void
+  ): void;
+}
+
+interface LanguageDetectorDownloadProgressEvent extends Event {
+  loaded: number;
+  total: number;
+}
+
+interface LanguageDetectionResult {
+  detectedLanguage: string;
+  confidence: number;
+}
+
+interface LanguageDetector {
+  detect(text: string): Promise<LanguageDetectionResult[]>;
+}
+
+interface LanguageDetectorConstructor {
+  create(options?: LanguageDetectorCreateOptions): Promise<LanguageDetector>;
+  availability(): Promise<string>;
+}
+
+declare global {
+  interface Window {
+    LanguageDetector?: LanguageDetectorConstructor;
+  }
 }
 
 export function BroadcasterInterface({
@@ -65,24 +108,51 @@ export function BroadcasterInterface({
   const supabase = getSupabaseBrowserClient();
   const broadcastChannelRef = useRef<any>(null);
 
+  // Language detection state
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
+  const [isLanguageDetectorSupported, setIsLanguageDetectorSupported] =
+    useState(false);
+  const languageDetectorRef = useRef<LanguageDetector | null>(null);
+
   const scribe = useScribe({
     modelId: "scribe_realtime_v2",
-    onPartialTranscript: (data) => {
+    onPartialTranscript: async (data) => {
       console.log("Partial:", { data });
       setPartialText(data.text);
+
+      // Detect language from partial transcript
+      const detectedLang = await detectLanguage(data.text);
+      if (detectedLang) {
+        setDetectedLanguage(detectedLang);
+      }
+
+      // Use detected language or fallback to Scribe's language_code
+      const languageCode = detectedLang || (data as any).language_code;
 
       // Broadcast partial transcript to viewers via Realtime Broadcast
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.send({
           type: "broadcast",
           event: "partial_transcript",
-          payload: { text: data.text },
+          payload: {
+            text: data.text,
+            language_code: languageCode,
+          },
         });
       }
     },
     onFinalTranscript: async (data) => {
       console.log("Final:", data.text);
       setPartialText("");
+
+      // Detect language from final transcript
+      const detectedLang = await detectLanguage(data.text);
+      if (detectedLang) {
+        setDetectedLanguage(detectedLang);
+      }
+
+      // Use detected language or fallback to Scribe's language_code
+      const languageCode = detectedLang || (data as any).language_code;
 
       // Save to Supabase
       try {
@@ -93,6 +163,7 @@ export function BroadcasterInterface({
             text: data.text,
             sequence_number: sequenceNumberRef.current++,
             is_final: true,
+            language_code: languageCode,
           })
           .select()
           .single();
@@ -113,6 +184,33 @@ export function BroadcasterInterface({
       setError(`Transcription error: ${errorMessage}`);
     },
   });
+
+  // Detect language from text
+  const detectLanguage = useCallback(
+    async (text: string): Promise<string | null> => {
+      if (!languageDetectorRef.current || text.length < 10) {
+        return null; // Skip very short text for better accuracy
+      }
+
+      try {
+        const results = await languageDetectorRef.current.detect(text);
+        if (results.length > 0) {
+          const topResult = results[0];
+          // Only accept results with confidence > 0.5
+          if (topResult.confidence > 0.5) {
+            console.log(
+              `Detected language: ${topResult.detectedLanguage} (confidence: ${topResult.confidence})`
+            );
+            return topResult.detectedLanguage;
+          }
+        }
+      } catch (error) {
+        console.error("Error detecting language:", error);
+      }
+      return null;
+    },
+    []
+  );
 
   const copyViewerLink = () => {
     navigator.clipboard.writeText(viewerUrl);
@@ -151,6 +249,40 @@ export function BroadcasterInterface({
 
     getAudioDevices();
   }, [selectedDeviceId]);
+
+  // Initialize Language Detector API
+  useEffect(() => {
+    const initLanguageDetector = async () => {
+      if (typeof window !== "undefined" && "LanguageDetector" in window) {
+        setIsLanguageDetectorSupported(true);
+        try {
+          const availability = await window.LanguageDetector!.availability();
+          console.log("Language Detector availability:", availability);
+
+          const detector = await window.LanguageDetector!.create({
+            monitor(m) {
+              m.addEventListener("downloadprogress", (e) => {
+                console.log(
+                  `Language Detector model download: ${Math.round(
+                    e.loaded * 100
+                  )}%`
+                );
+              });
+            },
+          });
+
+          languageDetectorRef.current = detector;
+          console.log("Language Detector initialized successfully");
+        } catch (error) {
+          console.error("Error initializing Language Detector:", error);
+        }
+      } else {
+        console.log("Language Detector API not supported in this browser");
+      }
+    };
+
+    initLanguageDetector();
+  }, []);
 
   const fetchToken = async () => {
     try {
@@ -404,13 +536,25 @@ export function BroadcasterInterface({
             </div>
 
             {isRecording && (
-              <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse delay-75"></span>
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse delay-150"></span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse delay-75"></span>
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse delay-150"></span>
+                  </div>
+                  <span className="font-medium">Recording in progress</span>
                 </div>
-                <span className="font-medium">Recording in progress</span>
+
+                {/* Language Detection Indicator */}
+                {isLanguageDetectorSupported && detectedLanguage && (
+                  <div className="flex items-center gap-2 justify-center">
+                    <Badge variant="secondary" className="gap-1.5">
+                      <Languages className="h-3 w-3" />
+                      Detected: {detectedLanguage.toUpperCase()}
+                    </Badge>
+                  </div>
+                )}
               </div>
             )}
           </div>

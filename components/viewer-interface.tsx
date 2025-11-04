@@ -36,6 +36,7 @@ interface Caption {
   text: string;
   timestamp: string;
   is_final: boolean;
+  language_code?: string;
 }
 
 // Type definitions for Chrome Translator API
@@ -108,6 +109,7 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
 
   // Translation state
   const [targetLanguage, setTargetLanguage] = useState("none");
+  const [sourceLanguage, setSourceLanguage] = useState("en"); // Default to English
   const [translatedCaptions, setTranslatedCaptions] = useState<
     Map<string, string>
   >(new Map());
@@ -133,6 +135,21 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
         console.error("Error loading captions:", error);
       } else if (data) {
         setCaptions(data);
+
+        // Detect source language from the first caption with language_code
+        if (data.length > 0) {
+          const firstCaptionWithLang = data.find(
+            (caption: Caption) => caption.language_code
+          );
+          if (firstCaptionWithLang?.language_code) {
+            setSourceLanguage(firstCaptionWithLang.language_code);
+            console.log(
+              "Detected source language:",
+              firstCaptionWithLang.language_code
+            );
+          }
+        }
+
         // Scroll to bottom after initial load
         setTimeout(() => {
           if (scrollContainerRef.current) {
@@ -161,6 +178,12 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
         },
         (payload: { new: Caption }) => {
           console.log("New caption received:", payload);
+
+          // Update source language if detected
+          if (payload.new.language_code) {
+            setSourceLanguage(payload.new.language_code);
+          }
+
           // Clear partial text when final caption arrives
           setPartialText("");
           // Only add if we don't already have it (to avoid duplicates)
@@ -185,8 +208,14 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
       .on(
         "broadcast",
         { event: "partial_transcript" },
-        (payload: { payload: { text: string } }) => {
+        (payload: { payload: { text: string; language_code?: string } }) => {
           console.log("Partial transcript received:", payload);
+
+          // Update source language if detected
+          if (payload.payload.language_code) {
+            setSourceLanguage(payload.payload.language_code);
+          }
+
           setPartialText(payload.payload.text);
         }
       )
@@ -206,7 +235,7 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
     }
   }, []);
 
-  // Create translator when target language changes
+  // Create translator when target language or source language changes
   useEffect(() => {
     const createTranslator = async () => {
       // Clean up existing translator
@@ -229,21 +258,20 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
       try {
         setIsTranslating(true);
 
-        // Check availability - we'll assume source is English for now
-        // In production, you might want to use Language Detector API
+        // Check availability using detected source language
         const availability = await window.Translator!.availability({
-          sourceLanguage: "en",
+          sourceLanguage: sourceLanguage,
           targetLanguage: targetLanguage,
         });
 
         console.log(
-          `Translator availability for en -> ${targetLanguage}:`,
+          `Translator availability for ${sourceLanguage} -> ${targetLanguage}:`,
           availability
         );
 
         // Create the translator with download progress monitoring
         const translator = await window.Translator!.create({
-          sourceLanguage: "en",
+          sourceLanguage: sourceLanguage,
           targetLanguage: targetLanguage,
           monitor: (m) => {
             m.addEventListener("downloadprogress", (e) => {
@@ -282,7 +310,7 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
         translatorRef.current = null;
       }
     };
-  }, [targetLanguage, isTranslatorSupported]);
+  }, [targetLanguage, sourceLanguage, isTranslatorSupported, captions]);
 
   // Function to translate existing captions
   const translateExistingCaptions = async (translator: Translator) => {
@@ -379,34 +407,41 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
 
           {/* Language Selector */}
           {isTranslatorSupported && (
-            <div className="mt-4 flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Languages className="h-4 w-4" />
-                <span>Translation:</span>
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Languages className="h-4 w-4" />
+                  <span>Translation:</span>
+                </div>
+                <Select
+                  value={targetLanguage}
+                  onValueChange={setTargetLanguage}
+                  disabled={isTranslating}
+                >
+                  <SelectTrigger className="w-[250px]">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isTranslating && (
+                  <Badge variant="outline" className="gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    {downloadProgress !== null
+                      ? `Downloading model ${downloadProgress}%`
+                      : "Translating..."}
+                  </Badge>
+                )}
               </div>
-              <Select
-                value={targetLanguage}
-                onValueChange={setTargetLanguage}
-                disabled={isTranslating}
-              >
-                <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((lang) => (
-                    <SelectItem key={lang.code} value={lang.code}>
-                      {lang.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isTranslating && (
-                <Badge variant="outline" className="gap-1.5">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  {downloadProgress !== null
-                    ? `Downloading model ${downloadProgress}%`
-                    : "Translating..."}
-                </Badge>
+              {sourceLanguage && sourceLanguage !== "en" && (
+                <div className="text-xs text-muted-foreground ml-6">
+                  Detected source language: {sourceLanguage.toUpperCase()}
+                </div>
               )}
             </div>
           )}

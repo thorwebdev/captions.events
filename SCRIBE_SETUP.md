@@ -56,7 +56,8 @@ Ensure your Supabase database has the necessary tables and policies. The caption
    - Uses the `useScribe` hook from `@elevenlabs/react`
    - Captures audio from the microphone
    - Receives partial and final transcripts in real-time
-   - Saves final transcripts to Supabase
+   - Detects language using Chrome's Language Detector API
+   - Saves final transcripts with language_code to Supabase
 
 3. **Viewer Interface**
    - Subscribes to Supabase realtime updates
@@ -72,6 +73,28 @@ Ensure your Supabase database has the necessary tables and policies. The caption
 - **Caption history**: All captions are stored and displayed in chronological order
 - **Real-time translation**: Viewers can translate captions to their preferred language using Chrome's built-in AI (Chrome 138+)
 
+## Real-Time Language Detection
+
+The broadcaster interface uses Chrome's built-in [Language Detector API](https://developer.chrome.com/docs/ai/language-detection) to automatically detect the language of spoken transcripts in real-time.
+
+### How It Works
+
+1. **Automatic Detection**: As transcripts are generated, Chrome's Language Detector API analyzes the text
+2. **Confidence-Based**: Only detections with >50% confidence are used
+3. **Real-Time Updates**: Language is detected and updated continuously during recording
+4. **Fallback Support**: Falls back to ElevenLabs Scribe's language_code if detection fails
+5. **Visual Feedback**: Shows detected language badge during recording
+
+### Benefits
+
+- **Privacy-First**: All detection happens on-device
+- **Accurate**: Uses dedicated language detection models
+- **Fast**: Typically 10-50ms per detection
+- **Non-Intrusive**: Works silently in the background
+- **Reliable**: Automatic fallback to Scribe's language detection
+
+For detailed technical documentation, see [CHROME_LANGUAGE_DETECTOR.md](./CHROME_LANGUAGE_DETECTOR.md)
+
 ## Real-Time Translation Feature
 
 The viewer interface includes support for **on-device translation** using Chrome's built-in Translator API. This feature allows viewers to translate captions into their preferred language in real-time, without sending data to external servers.
@@ -84,10 +107,11 @@ The viewer interface includes support for **on-device translation** using Chrome
 ### How Translation Works
 
 1. **Feature Detection**: The viewer interface automatically detects if the browser supports the Translator API
-2. **Language Selection**: Viewers can choose from 14+ supported languages via a dropdown menu
-3. **Model Download**: On first use of a language pair, Chrome downloads the translation model (progress is shown)
-4. **On-Device Translation**: All translation happens locally in the browser for maximum privacy and speed
-5. **Real-Time Updates**: Both final captions and partial transcripts are translated as they arrive
+2. **Source Language Detection**: Automatically detects the spoken language from ElevenLabs transcription data
+3. **Language Selection**: Viewers can choose from 14+ supported languages via a dropdown menu
+4. **Model Download**: On first use of a language pair, Chrome downloads the translation model (progress is shown)
+5. **On-Device Translation**: All translation happens locally in the browser for maximum privacy and speed
+6. **Real-Time Updates**: Both final captions and partial transcripts are translated as they arrive
 
 ### Supported Languages
 
@@ -113,6 +137,8 @@ The viewer interface includes support for **on-device translation** using Chrome
 - **Works Offline**: Once models are downloaded, translation works even without internet
 - **No API Costs**: Uses Chrome's built-in AI, no translation API fees
 - **Seamless Experience**: Translations update in real-time as new captions arrive
+- **Automatic Language Detection**: Source language is automatically detected from transcription data - no manual selection needed
+- **Multilingual Support**: Automatically adapts when the spoken language changes during a session
 
 ### Browser Compatibility
 
@@ -250,8 +276,10 @@ Consider adding:
 - Custom styling options for captions
 - Speaker identification
 - ~~Multi-language support~~ ✅ **Implemented with Chrome Translator API**
+- ~~Language detection for automatic source language identification~~ ✅ **Implemented with language_code from transcription**
 - Offline caption viewing
-- Language detection for automatic source language identification
+- Language confidence scores and manual override
+- Caption history filtering by language
 
 ## Support
 
@@ -266,5 +294,6 @@ For issues with:
 - [ElevenLabs Scribe Documentation](https://elevenlabs.io/docs/api-reference/scribe)
 - [ElevenLabs React SDK](https://www.npmjs.com/package/@elevenlabs/react)
 - [Supabase Realtime](https://supabase.com/docs/guides/realtime)
+- [Chrome Language Detector API](https://developer.chrome.com/docs/ai/language-detection)
 - [Chrome Translator API](https://developer.chrome.com/docs/ai/translator-api)
 - [Chrome Built-in AI Overview](https://developer.chrome.com/docs/ai/built-in)
