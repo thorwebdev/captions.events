@@ -11,14 +11,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Eye, Languages, Loader2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { LANGUAGES } from "@/lib/languages";
+import { LanguageSelector } from "@/components/language-selector";
 
 interface Event {
   id: string;
@@ -80,25 +75,6 @@ declare global {
     Translator?: TranslatorConstructor;
   }
 }
-
-// Common languages for translation
-const LANGUAGES = [
-  { code: "none", name: "Original (No Translation)" },
-  { code: "en", name: "English" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "pt", name: "Portuguese" },
-  { code: "nl", name: "Dutch" },
-  { code: "ru", name: "Russian" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "zh", name: "Chinese (Simplified)" },
-  { code: "ar", name: "Arabic" },
-  { code: "hi", name: "Hindi" },
-  { code: "tr", name: "Turkish" },
-];
 
 export function ViewerInterface({ event }: ViewerInterfaceProps) {
   const [captions, setCaptions] = useState<Caption[]>([]);
@@ -413,22 +389,17 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
                   <Languages className="h-4 w-4" />
                   <span>Translation:</span>
                 </div>
-                <Select
-                  value={targetLanguage}
-                  onValueChange={setTargetLanguage}
-                  disabled={isTranslating}
-                >
-                  <SelectTrigger className="w-[250px]">
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map((lang) => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="w-[250px]">
+                  <LanguageSelector
+                    value={targetLanguage}
+                    onValueChange={(code) => setTargetLanguage(code || "none")}
+                    disabled={isTranslating}
+                    defaultOption={{
+                      value: "none",
+                      label: "Original (No Translation)",
+                    }}
+                  />
+                </div>
                 {isTranslating && (
                   <Badge variant="outline" className="gap-1.5">
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -580,6 +551,26 @@ export function ViewerInterface({ event }: ViewerInterfaceProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Powered by ElevenLabs Badge */}
+      <div className="flex justify-center py-4">
+        <a
+          href="https://elevenlabs.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group"
+        >
+          <Badge
+            variant="secondary"
+            className="px-4 py-2 text-sm transition-colors hover:bg-primary/10"
+          >
+            <span className="text-muted-foreground">Powered by</span>
+            <span className="ml-1.5 font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent group-hover:from-purple-500 group-hover:to-blue-500 transition-all">
+              ElevenLabs
+            </span>
+          </Badge>
+        </a>
+      </div>
     </div>
   );
 }

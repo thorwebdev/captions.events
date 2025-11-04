@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LanguageSelector } from "@/components/language-selector";
 
 interface Event {
   id: string;
@@ -104,6 +105,7 @@ export function BroadcasterInterface({
   const [partialText, setPartialText] = useState("");
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const sequenceNumberRef = useRef(0);
   const supabase = getSupabaseBrowserClient();
   const broadcastChannelRef = useRef<any>(null);
@@ -324,10 +326,17 @@ export function BroadcasterInterface({
         microphoneOptions
       );
 
-      await scribe.connect({
+      const connectOptions: any = {
         token,
         microphone: microphoneOptions,
-      });
+      };
+
+      // Add language if specified (otherwise auto-detect)
+      if (selectedLanguage) {
+        connectOptions.language = selectedLanguage;
+      }
+
+      await scribe.connect(connectOptions);
 
       setIsRecording(true);
     } catch (err) {
@@ -487,6 +496,20 @@ export function BroadcasterInterface({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Language Selector */}
+            {!isRecording && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Language</label>
+                <LanguageSelector
+                  value={selectedLanguage}
+                  onValueChange={setSelectedLanguage}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Select a specific language or use auto-detect
+                </p>
+              </div>
+            )}
+
             {/* Microphone Selector */}
             {!isRecording && audioDevices.length > 0 && (
               <div className="space-y-2">
@@ -610,6 +633,26 @@ export function BroadcasterInterface({
           </div>
         </CardContent>
       </Card>
+
+      {/* Powered by ElevenLabs Badge */}
+      <div className="flex justify-center py-4">
+        <a
+          href="https://elevenlabs.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group"
+        >
+          <Badge
+            variant="secondary"
+            className="px-4 py-2 text-sm transition-colors hover:bg-primary/10"
+          >
+            <span className="text-muted-foreground">Powered by</span>
+            <span className="ml-1.5 font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent group-hover:from-purple-500 group-hover:to-blue-500 transition-all">
+              ElevenLabs
+            </span>
+          </Badge>
+        </a>
+      </div>
     </div>
   );
 }
