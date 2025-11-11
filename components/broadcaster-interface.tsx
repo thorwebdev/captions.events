@@ -644,7 +644,7 @@ export function BroadcasterInterface({
             >
               <span className="text-muted-foreground">Powered by</span>
               <a
-                href="https://elevenlabs.io/speech-to-text"
+                href="https://elevenlabs.io/realtime-speech-to-text"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group"
