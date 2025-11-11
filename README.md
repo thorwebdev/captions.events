@@ -2,6 +2,8 @@
 
 Real-time captioning platform with on-device translation. Built with ElevenLabs Scribe and Supabase.
 
+![LiveCaptions Header](https://raw.githubusercontent.com/thorwebdev/captions.events/refs/heads/main/public/supa_scribe_og.jpg?token=GHSAT0AAAAAAC5THBEKV3QMUGKDHB4V5NQI2ITWIAQ)
+
 ## Features
 
 - Real-time speech-to-text transcription (100-200ms latency)
