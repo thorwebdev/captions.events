@@ -2,7 +2,7 @@
 
 Real-time captioning platform with on-device translation. Built with ElevenLabs Scribe and Supabase.
 
-![LiveCaptions Header](https://raw.githubusercontent.com/thorwebdev/captions.events/refs/heads/main/public/supa_scribe_og.jpg?token=GHSAT0AAAAAAC5THBEKV3QMUGKDHB4V5NQI2ITWIAQ)
+![LiveCaptions Header](https://raw.githubusercontent.com/elevenlabs/captions.events/refs/heads/main/public/supa_scribe_og.jpg)
 
 ## Features
 
