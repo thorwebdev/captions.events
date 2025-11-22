@@ -35,7 +35,7 @@ pnpm install
 
 - Create project at [supabase.com](https://supabase.com)
 - Run migrations from `supabase/migrations/` in order
-- Or use CLI: `supabase start` (for local dev)
+- Or use CLI: `npx supabase start` (for local dev)
 
 3. **Configure GitHub OAuth**
 
