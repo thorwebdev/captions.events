@@ -26,8 +26,8 @@ Real-time captioning platform with on-device translation. Built with ElevenLabs 
 1. **Clone and install**
 
 ```bash
-git clone https://github.com/yourusername/v0_realtime_scribe.git
-cd v0_realtime_scribe
+git clone https://github.com/elevenlabs/captions.events.git
+cd captions.events
 pnpm install
 ```
 
